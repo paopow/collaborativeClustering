@@ -73,7 +73,7 @@ def paramsUs_to_minimize(params, Ys, X, b):
 paramsUs_to_minimize_with_grad = value_and_grad(paramsUs_to_minimize) 
 
 # %%
-def prepare_clusters(raw_clusters):
+def transform_clusters(raw_clusters):
     '''
     input [
            [['item1','item3'],['item2','item4']],
@@ -107,11 +107,12 @@ raw_clusters = [
     [['B','C'],['A','D']],
     [['A','B'],['C'],['D','E','F']]
     ]    
-prepare_clusters(raw_clusters) 
+transform_clusters(raw_clusters) 
 
 # %%
 def calculate_b(Ys,X,Us):
-    bs = []
+    total = 0.
+    count = 0
     for i in range(len(Ys)):
         Y = Ys[i]
         mask_pos = Y==1
@@ -120,12 +121,13 @@ def calculate_b(Ys,X,Us):
         Beta = (mask_pos)*1 + (mask_neg)*tm
         U = np.make_diagonal(Us[D*i:D*(i+1)], axis1=-1, axis2=-2)
         b = np.sum(Beta*(Y - np.dot(np.dot(X,U),(X.T))))
-        bs.append(b)
+        count += np.sum(mask_pos + mask_neg)
+        total += b
+    return total/count
 
-    return np.mean(bs)
 
 # %%    
-def learn_lcc(user_clusters, N, max_itr=1):
+def learn_lcc(user_clusters, N, max_itr=500):
     # Initialize values
     num_user = len(user_clusters)
     Ys = []
@@ -133,32 +135,30 @@ def learn_lcc(user_clusters, N, max_itr=1):
         Y = get_Y(user_clusters[i],N)
         Ys.append(Y)    
     X = np.random.rand(N,D)  
-    print(X)
     Us = np.ones(num_user*D,dtype=float)    
     itr = 0
     b = 0.
     last_loss = None
+    loss_vals = []
     
     while itr < max_itr: #TODO add not converged condition ==1e-6
         print(itr)
         b = calculate_b(Ys, X, Us) # update b 
-        '''
+        
         output_for_X = minimize(paramsX_to_minimize_with_grad, X.ravel(), 
                   args=(Ys,Us,b),method='CG', jac=True)
-        if output_for_X.status == 0:
-            X = output_for_X.x.reshape(N,D)
-        else:
+        X = output_for_X.x.reshape(N,D)
+        if output_for_X.status != 0:
             print('X does not converge properly.')
-        print(output_for_X.fun)
-        '''
-        '''
+        print('loss X: ',output_for_X.fun)
+        
         output_for_Us = minimize(paramsUs_to_minimize_with_grad, Us, 
                   args=(Ys,X,b),method='CG', jac=True) 
-        if output_for_Us.status == 0:
-            Us = output_for_Us.x
-        else:
+        Us = output_for_Us.x
+        if output_for_Us.status != 0:
             print('Us does not converge properly.')
-        '''
+        print('loss Us: ', output_for_Us.fun)
+        loss_vals.append(output_for_Us.fun)
         '''
         if last_loss:
             if abs(last_loss - output_for_Us.fun) <= (1e-6):
@@ -169,7 +169,7 @@ def learn_lcc(user_clusters, N, max_itr=1):
         #print(last_loss)
         itr += 1
         
-    return X, Ys, Us, b
+    return X, Ys, Us, b, loss_vals
 
     
 y1 = [list(range(25)), 
@@ -178,9 +178,10 @@ y1 = [list(range(25)),
 y2 = [list(range(25,50)),
      list(range(50,75)), 
      list(range(75,100))]
-ys = [y1,y2,y1,y2,y1,y2]
-ys, N, item_list, item_dict = prepare_clusters(ys) 
-X, Ys, Us, b = learn_lcc(ys,100)
+ys = [y1,y2]
+ys, N, item_list, item_dict = transform_clusters(ys) 
+X, Ys, Us, b, loss_vals = learn_lcc(ys,100)
+plt.plot()
 
    
     
@@ -224,10 +225,10 @@ y1 = [list(range(25)),
 y2 = [list(range(25,50)),
      list(range(50,75)), 
      list(range(75,100))]
-Y1 = get_Y(y,100)
+Y1 = get_Y(y1,100)
 Y2 = get_Y(y2,100)
 Ys = [Y1,Y2]
-Us = [np.eye(2), np.eye(2)]
+Us = np.ones(4,dtype=float)
 b = 0.
 X_correct = np.concatenate((
     np.concatenate((
@@ -255,7 +256,7 @@ X_shuffle = np.concatenate((
     np.concatenate((
         np.random.uniform(0 - 0.01,0 + 0.01,(25,1)),
         np.random.uniform(1 - 0.01,1 + 0.01,(25,1))
-        ),axis = 1),
+        ),axis = 1),    
     np.concatenate((
         np.random.uniform(-1 - 0.01,-1 + 0.01,(25,1)),
         np.random.uniform(0 - 0.01,0 + 0.01,(25,1))
