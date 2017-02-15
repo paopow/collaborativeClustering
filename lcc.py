@@ -127,7 +127,7 @@ def calculate_b(Ys,X,Us):
 
 
 # %%    
-def learn_lcc(user_clusters, N, max_itr=500):
+def learn_lcc(user_clusters, N, max_itr=1000):
     # Initialize values
     num_user = len(user_clusters)
     Ys = []
@@ -148,30 +148,27 @@ def learn_lcc(user_clusters, N, max_itr=500):
         output_for_X = minimize(paramsX_to_minimize_with_grad, X.ravel(), 
                   args=(Ys,Us,b),method='CG', jac=True)
         X = output_for_X.x.reshape(N,D)
-        if output_for_X.status != 0:
-            print('X does not converge properly.')
-        print('loss X: ',output_for_X.fun)
+        #if output_for_X.status != 0:
+        #    print('X does not converge properly.')
+        #print('loss X: ',output_for_X.fun)
         
         output_for_Us = minimize(paramsUs_to_minimize_with_grad, Us, 
                   args=(Ys,X,b),method='CG', jac=True) 
         Us = output_for_Us.x
-        if output_for_Us.status != 0:
-            print('Us does not converge properly.')
-        print('loss Us: ', output_for_Us.fun)
+        #if output_for_Us.status != 0:
+        #    print('Us does not converge properly.')
+        #print('loss Us: ', output_for_Us.fun)
         loss_vals.append(output_for_Us.fun)
-        '''
         if last_loss:
             if abs(last_loss - output_for_Us.fun) <= (1e-6):
                 break
     
         last_loss = output_for_Us.fun
-        '''
-        #print(last_loss)
         itr += 1
         
     return X, Ys, Us, b, loss_vals
 
-    
+# %% test learn lcc  
 y1 = [list(range(25)), 
      list(range(25,50)),
      list(range(50,75))]
@@ -181,7 +178,8 @@ y2 = [list(range(25,50)),
 ys = [y1,y2]
 ys, N, item_list, item_dict = transform_clusters(ys) 
 X, Ys, Us, b, loss_vals = learn_lcc(ys,100)
-plt.plot()
+plt.plot(list(range(len(loss_vals))),loss_vals)
+plt.show()
 
    
     
